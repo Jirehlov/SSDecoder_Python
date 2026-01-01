@@ -664,7 +664,9 @@ def compare_pcks(p1: str, p2: str) -> int:
     g2 = group(s2)
     keys = sorted(set(g1.keys()) | set(g2.keys()), key=lambda x: (x[0], x[1]))
 
-    rows = []
+    diff_rows = []
+    all_same = True
+
     for sym, name in keys:
         l1 = g1.get((sym, name), [])
         l2 = g2.get((sym, name), [])
@@ -696,22 +698,29 @@ def compare_pcks(p1: str, p2: str) -> int:
                 if a1 >= 0 and b1 <= len(d1) and a2 >= 0 and b2 <= len(d2):
                     same = (d1[a1:b1] == d2[a2:b2])
 
-            addr = a1 if r1 else (a2 if r2 else 0)
-            nm = name if i == 0 else f"{name}#{i}"
-            rows.append((same, addr, sym, st1, st2, s1z, s2z, nm))
-
-    rows.sort(key=lambda t: (t[0], t[1]))
+            if not same:
+                all_same = False
+                addr = a1 if r1 else (a2 if r2 else 0)
+                nm = name if i == 0 else f"{name}#{i}"
+                diff_rows.append((addr, sym, st1, st2, s1z, s2z, nm))
 
     print("==== PCK Compare ====")
     print(f"pck1: {p1}  size={len(d1)} ({hx(len(d1))})")
     print(f"pck2: {p2}  size={len(d2)} ({hx(len(d2))})")
     print()
-    print("SYM  START1      START2      SIZE1       SIZE2       SAME   NAME")
-    print("---- ----------  ----------  ----------  ----------  -----  ----")
 
-    for same, addr, sym, st1, st2, s1z, s2z, nm in rows:
-        same_s = f"{str(bool(same)):<5}"
-        print(f"{sym:>3}  {st1:<10}  {st2:<10}  {s1z:10d}  {s2z:10d}  {same_s}  {_dn(nm):<{NAME_W}}")
+    if all_same:
+        print("They are identical!")
+        return 0
+
+    print("Differences are...")
+    diff_rows.sort(key=lambda t: t[0])
+
+    print("SYM  START1      START2      SIZE1       SIZE2       NAME")
+    print("---- ----------  ----------  ----------  ----------  ----")
+
+    for addr, sym, st1, st2, s1z, s2z, nm in diff_rows:
+        print(f"{sym:>3}  {st1:<10}  {st2:<10}  {s1z:10d}  {s2z:10d}  {_dn(nm):<{NAME_W}}")
 
     return 0
 
@@ -728,7 +737,6 @@ def build_parser():
         "\n"
         "compare mode (-c):\n"
         "  - compares sections grouped by (SYM, NAME).\n"
-        "  - output is sorted with SAME=False first, then SAME=True; within each, by START address.\n"
     )
     p = argparse.ArgumentParser(
         prog="ssd.py",
